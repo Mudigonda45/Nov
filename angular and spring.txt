@@ -201,3 +201,160 @@ export class AppComponent implements OnInit {
     </ul>
 </div>
 ==========================
+import { Component, EventEmitter, Input, Output } from '@angular/core';
+import { Task } from '../../task';
+
+@Component({
+    selector: 'app-task-list',
+    templateUrl: './task-list.component.html',
+    styleUrls: ['./task-list.component.css'],
+})
+export class TaskListComponent {
+    @Input() tasks: Task[] = [];
+    @Output() edit = new EventEmitter<Task>();
+    @Output() delete = new EventEmitter<number>();
+
+    onEdit(task: Task): void {
+        this.edit.emit(task);
+    }
+
+    onDelete(taskId: number): void {
+        this.delete.emit(taskId);
+    }
+}
+========================================================
+<div>
+    <h2>Add Task</h2>
+    <input [(ngModel)]="newTask.title" placeholder="Title" />
+    <input [(ngModel)]="newTask.description" placeholder="Description" />
+    <button (click)="onAdd()">Add Task</button>
+</div>
+TypeScript:
+
+typescript
+Copy code
+import { Component, EventEmitter, Output } from '@angular/core';
+import { Task } from '../../task';
+
+@Component({
+    selector: 'app-task-form',
+    templateUrl: './task-form.component.html',
+    styleUrls: ['./task-form.component.css'],
+})
+export class TaskFormComponent {
+    newTask: Task = { title: '', description: '', completed: false };
+
+    @Output() add = new EventEmitter<Task>();
+
+    onAdd(): void {
+        this.add.emit(this.newTask);
+        this.newTask = { title: '', description: '', completed: false };
+    }
+}
+====================================================================
+<div *ngIf="editingTask">
+    <h2>Edit Task</h2>
+    <input [(ngModel)]="editingTask.title" placeholder="Title" />
+    <input [(ngModel)]="editingTask.description" placeholder="Description" />
+    <label>
+        <input type="checkbox" [(ngModel)]="editingTask.completed" />
+        Completed
+    </label>
+    <button (click)="onUpdate()">Update Task</button>
+    <button (click)="onCancel()">Cancel</button>
+</div>
+=============
+import { Component, EventEmitter, Input, Output } from '@angular/core';
+import { Task } from '../../task';
+
+@Component({
+    selector: 'app-task-edit',
+    templateUrl: './task-edit.component.html',
+    styleUrls: ['./task-edit.component.css'],
+})
+export class TaskEditComponent {
+    @Input() editingTask: Task | null = null;
+    @Output() update = new EventEmitter<Task>();
+    @Output() cancel = new EventEmitter<void>();
+
+    onUpdate(): void {
+        if (this.editingTask) {
+            this.update.emit(this.editingTask);
+        }
+    }
+
+    onCancel(): void {
+        this.cancel.emit();
+    }
+}
+============================================================
+<div style="text-align:center">
+    <h1>To-Do Application</h1>
+
+    <!-- Task Form -->
+    <app-task-form (add)="addTask($event)"></app-task-form>
+
+    <!-- Task Edit -->
+    <app-task-edit
+        *ngIf="editingTask"
+        [editingTask]="editingTask"
+        (update)="updateTask($event)"
+        (cancel)="cancelEdit()"
+    ></app-task-edit>
+
+    <!-- Task List -->
+    <app-task-list
+        [tasks]="tasks"
+        (edit)="editTask($event)"
+        (delete)="deleteTask($event)"
+    ></app-task-list>
+</div>
+=======================
+import { Component, OnInit } from '@angular/core';
+import { Task } from './task';
+import { TaskService } from './task.service';
+
+@Component({
+    selector: 'app-root',
+    templateUrl: './app.component.html',
+    styleUrls: ['./app.component.css'],
+})
+export class AppComponent implements OnInit {
+    tasks: Task[] = [];
+    editingTask: Task | null = null;
+
+    constructor(private taskService: TaskService) {}
+
+    ngOnInit(): void {
+        this.loadTasks();
+    }
+
+    loadTasks(): void {
+        this.taskService.getTasks().subscribe((data) => (this.tasks = data));
+    }
+
+    addTask(task: Task): void {
+        this.taskService.addTask(task).subscribe(() => this.loadTasks());
+    }
+
+    editTask(task: Task): void {
+        this.editingTask = { ...task };
+    }
+
+    updateTask(task: Task): void {
+        if (task.id) {
+            this.taskService.updateTask(task.id, task).subscribe(() => {
+                this.loadTasks();
+                this.editingTask = null;
+            });
+        }
+    }
+
+    deleteTask(taskId: number): void {
+        this.taskService.deleteTask(taskId).subscribe(() => this.loadTasks());
+    }
+
+    cancelEdit(): void {
+        this.editingTask = null;
+    }
+}
